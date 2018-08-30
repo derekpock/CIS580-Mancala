@@ -34,6 +34,13 @@ const endzoneYBottom = (containerRadius * 2) + containerYMargin + containerYOffs
 const pebbleRadius = 30;
 const pebbleShimmy = 3;
 
+let leftColor = "#FF2222";
+// let leftColorDark = "#551111";
+let leftColorDark = "#222222";
+let rightColor = "#2222FF";
+// let rightColorDark = "#111155";
+let rightColorDark = "#222222";
+
 /// Data structures
 let pebbles = [];
 let containers = [];
@@ -80,12 +87,12 @@ function scheduleDraw() {
 
 /// Calculate pebble locations.
 function logic() {
-    for(let y = 0; y < 2; y++)
-    {
-        for(let x = 0; x < 6; x++) {
-            containers[y][x][PEBBLE_COUNT] = 0;
-        }
-    }
+    // for(let y = 0; y < 2; y++)
+    // {
+    //     for(let x = 0; x < 6; x++) {
+    //         containers[y][x][PEBBLE_COUNT] = 0;
+    //     }
+    // }
 
     for(let i = 0; i < pebbles.length; i++) {
         // Shimmy the pebbles a little bit
@@ -117,6 +124,13 @@ function draw() {
     {
         drawPebble(i);
     }
+
+    drawPebbleCountNumber(0, 0, leftColor);
+    drawPebbleCountNumber(7, 1, rightColor);
+    for(let i = 0; i < 6; i++) {
+        drawPebbleCountNumber(i + 1, 0, "#CCCCCC");
+        drawPebbleCountNumber(i + 1, 1, "#CCCCCC");
+    }
 }
 
 /// Create a new container with logical coordinate x and y.
@@ -134,7 +148,7 @@ function drawContainer(x, y) {
     let xCoord = container[CURRENT_X];
     let yCoord = container[CURRENT_Y];
 
-    setRadialContainerGradient(xCoord, yCoord);
+    setRadialContainerGradient(xCoord, yCoord, y);
     ctx.beginPath();
     ctx.arc(xCoord, yCoord, containerRadius, 0, 2*Math.PI);
     ctx.fill();
@@ -142,8 +156,35 @@ function drawContainer(x, y) {
 
 /// Draw number above/below container or endzone. Coordinates are logical.
 /// x=0 refers to left endzone, x=7 refers to right endzone.
-function drawPebbleCountNumber(x, y) {
+function drawPebbleCountNumber(x, y, color) {
+    let xPos = numberXPositions[x];
+    let yPos;
+    let count;
 
+    if(y === 0) {
+        yPos = endzoneYTop  - (containerRadius * 1.5);
+    } else {
+        yPos = endzoneYBottom + (containerRadius * 1.5);
+    }
+
+    if(x === 0) {
+        count = scores[LEFT];
+    } else if (x === 7) {
+        count = scores[RIGHT];
+    } else if (x > 0 && x < 7) {
+        count = containers[y][x - 1][PEBBLE_COUNT];
+    }
+
+    let textData = getTextDimensions(count);
+    xPos -= textData[0] / 2;
+    yPos += textData[1] / 2;
+
+    ctx.fillStyle = color;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = "#CCCCCC";
+    ctx.font = "80px Arial";
+    ctx.fillText(count, xPos, yPos);
+    ctx.shadowBlur = 0;
 }
 
 
@@ -151,22 +192,22 @@ function drawPebbleCountNumber(x, y) {
 function drawEndzone(side) {
     let xCoord = getEndzoneXCoordinate(side);
 
-    setRadialContainerGradient(xCoord, endzoneYTop);
+    setRadialContainerGradient(xCoord, endzoneYTop, side);
     ctx.beginPath();
     ctx.arc(xCoord, endzoneYTop, containerRadius, Math.PI, 0);
     ctx.fill();
 
-    setRadialContainerGradient(xCoord, endzoneYBottom);
+    setRadialContainerGradient(xCoord, endzoneYBottom, side);
     ctx.beginPath();
     ctx.arc(xCoord, endzoneYBottom, containerRadius, 0, Math.PI);
     ctx.fill();
 
-    setLinearEndzoneGradient(xCoord - containerRadius, endzoneYTop);
+    setLinearEndzoneGradient(xCoord - containerRadius, endzoneYTop, side);
     ctx.fillRect(xCoord - containerRadius, endzoneYTop, containerRadius * 2, endzoneYBottom - endzoneYTop);
 }
 
 /// Set the ctx to a radial gradient for containers.
-function setRadialContainerGradient(x, y) {
+function setRadialContainerGradient(x, y, side) {
     let grd = ctx.createRadialGradient(
         x,
         y,
@@ -174,20 +215,29 @@ function setRadialContainerGradient(x, y) {
         x,
         y,
         containerRadius);
-    grd.addColorStop(0, "#222222");
+    if(side === LEFT) {
+        grd.addColorStop(0, leftColorDark);
+    } else {
+        grd.addColorStop(0, rightColorDark);
+    }
+    // grd.addColorStop(0, "#222222");
     grd.addColorStop(1, "#666666");
     ctx.fillStyle = grd;
 }
 
 /// Set the ctx to a linear gradient for the endzone rectangle.
-function setLinearEndzoneGradient(x, y) {
+function setLinearEndzoneGradient(x, y, side) {
     let grd = ctx.createLinearGradient(
         x,
         y,
         x + (containerRadius * 2),
         y);
+    if(side === LEFT) {
+        grd.addColorStop(0.5, leftColorDark);
+    } else {
+        grd.addColorStop(0.5, rightColorDark);
+    }
     grd.addColorStop(0,   "#666666");
-    grd.addColorStop(0.5, "#222222");
     grd.addColorStop(1,   "#666666");
     ctx.fillStyle = grd;
 }
@@ -350,7 +400,7 @@ canvas.addEventListener("click", function(event) {
     let possibleContainerY =
         Math.round((mouseY - containerYOffset - containerRadius) / ((containerRadius * 2) + containerYMargin));
 
-    if(possibleContainerY >= 0 && possibleContainerY < 2 &&
+    if(possibleContainerY === turn &&
         possibleContainerX >= 0 && possibleContainerX < 6) {
         let container = containers[possibleContainerY][possibleContainerX];
 
@@ -364,66 +414,115 @@ canvas.addEventListener("click", function(event) {
 /// Called when a container is clicked (by player or AI). Provide the logical container coords.
 function containerClicked(containerX, containerY) {
     // Gather all the pebble in the clicked container.
-    let myPebbles = [];
-    for(let i = 0; i < pebbles.length; i++) {
-        if(pebbles[i][CONTAINER_X] === containerX &&
-            pebbles[i][CONTAINER_Y] === containerY &&
-            pebbles[i][OWNER] === NONE) {
-            myPebbles.push(i);
-        }
-    }
+    let myPebbles = getAllPebblesBelongingToContainer(containerX, containerY);
 
     // Increment positions for each pebble as necessary.
+    let nextContainerX = containerX;
+    let nextContainerY = containerY;
+
+    let lastChangeIndex = -1;
     for(let i = 0; i < myPebbles.length; i++) {
         let p = pebbles[myPebbles[i]];
-        if(p[CONTAINER_Y] === 0) {
-            p[CONTAINER_X] -= (i + 1);
-        } else {
-            p[CONTAINER_X] += (i + 1);
+
+        if(lastChangeIndex === i - 1) {
+            if(nextContainerY === 0) {
+                nextContainerX--;
+            } else {
+                nextContainerX++;
+            }
+            lastChangeIndex = i;
         }
+
+        if(nextContainerY === 0) {
+            if(nextContainerX === -1) {
+                if(turn === LEFT) {
+                    scorePebbleToSide(p, LEFT);
+                } else {
+                    nextContainerX--;
+                    i--;
+                    continue;
+                }
+            } else if (nextContainerX < 0) {
+                nextContainerY = 1;
+                nextContainerX = (-nextContainerX) - 2;
+                i--;
+                continue;
+            }
+        } else {
+            if(nextContainerX === 6) {
+                if(turn === RIGHT) {
+                    scorePebbleToSide(p, RIGHT);
+                } else {
+                    nextContainerX++;
+                    i--;
+                    continue;
+                }
+            } else if (nextContainerX > 6) {
+                nextContainerY = 0;
+                nextContainerX = (-p[CONTAINER_X]) + 12;
+                i--;
+                continue;
+            }
+        }
+        p[CONTAINER_X] = nextContainerX;
+        p[CONTAINER_Y] = nextContainerY;
+        containers[nextContainerY][nextContainerX][PEBBLE_COUNT]++;
     }
 
     containers[containerY][containerX][PEBBLE_COUNT] = 0;
 
-    // Previous increment didn't account for changing rows (some indexes are out of bounds).
-    // Fix the bounds to the correct row.
-    for(let i = 0; i < myPebbles.length; i++) {
-        let p = pebbles[myPebbles[i]];
-        if(p[CONTAINER_Y] === 0) {  // Currently upper row.
-            if(p[CONTAINER_X] === -1) { // Goes into left zone.
-                let xCoord = getEndzoneXCoordinate(LEFT);
-                p[OWNER] = LEFT;
-                p[TARGET_X] = xCoord + (Math.random() * (containerRadius * 2)) - containerRadius;
-                p[TARGET_Y] = (endzoneYTop - containerRadius) + (Math.random() * (endzoneYBottom - endzoneYTop + (containerRadius * 2)));
-                scores[LEFT]++;
-            } else if (p[CONTAINER_X] < 0) {    // Goes to lower row.
-                p[CONTAINER_Y] = 1;
-                p[CONTAINER_X] = (-p[CONTAINER_X]) - 2;
-                i--;    // Might need to go back up if too large.
-            }
-        } else {    // Currently lower row.
-            if(p[CONTAINER_X] === 6) {  // Goes into right zone.
-                let xCoord = getEndzoneXCoordinate(RIGHT);
-                p[OWNER] = RIGHT;
-                p[TARGET_X] = xCoord + (Math.random() * (containerRadius * 2)) - containerRadius;
-                p[TARGET_Y] = (endzoneYTop - containerRadius) + (Math.random() * (endzoneYBottom - endzoneYTop + (containerRadius * 2)));
-                scores[RIGHT]++;
-            } else if (p[CONTAINER_X] > 6) {    // Goes to upper row.
-                p[CONTAINER_Y] = 0;
-                p[CONTAINER_X] = (-p[CONTAINER_X]) + 12;
-                i--;    // Might need to go back down if too large.
+    // If the last pebble ends in a blank on their own side, the current team gets all pebbles from the other side in
+    // the same x pos location.
+    let lastPebble = pebbles[myPebbles[myPebbles.length - 1]];
+    if(lastPebble != undefined &&
+        lastPebble[OWNER] === NONE &&
+        lastPebble[CONTAINER_Y] === turn) {
+        let stealContainerY = (turn + 1) % 2;
+        let stealContainerX = lastPebble[CONTAINER_X];
+        let lastContainer = containers[turn][stealContainerX];
+
+        if(lastContainer[PEBBLE_COUNT] === 1) {
+            let stealContainer = containers[stealContainerY][stealContainerX];
+            stealContainer[PEBBLE_COUNT] = 0;
+            let stolenPebbles = getAllPebblesBelongingToContainer(stealContainerX, stealContainerY);
+            for(let i = 0; i < stolenPebbles.length; i++) {
+                scorePebbleToSide(pebbles[stolenPebbles[i]], turn);
             }
         }
     }
 
-    for(let i = 0; i < myPebbles.length; i++) {
-        let p = pebbles[myPebbles[i]];
-        if(p[OWNER] === NONE) {
-            containers[p[CONTAINER_Y]][p[CONTAINER_X]][PEBBLE_COUNT]++;
-        }
+    if(lastPebble == undefined ||
+        lastPebble[OWNER] !== turn) {
+        turn = (turn + 1) % 2;
     }
 }
 
 function getEndzoneXCoordinate(side) {
     return (side * 7 * ((containerRadius * 2) + containerXMargin)) + containerRadius;
+}
+
+function getTextDimensions(text) {
+    let tester = document.getElementById("textWidthTester");
+    tester.innerText = text;
+    return [tester.clientWidth + 1, tester.clientHeight + 1];
+}
+
+function scorePebbleToSide(p, side) {
+    let xCoord = getEndzoneXCoordinate(side);
+    p[OWNER] = side;
+    p[TARGET_X] = xCoord + (Math.random() * (containerRadius * 2)) - containerRadius;
+    p[TARGET_Y] = (endzoneYTop - containerRadius) + (Math.random() * (endzoneYBottom - endzoneYTop + (containerRadius * 2)));
+    scores[side]++;
+}
+
+function getAllPebblesBelongingToContainer(x, y) {
+    let myPebbles = [];
+    for(let i = 0; i < pebbles.length; i++) {
+        if(pebbles[i][CONTAINER_X] === x &&
+            pebbles[i][CONTAINER_Y] === y &&
+            pebbles[i][OWNER] === NONE) {
+            myPebbles.push(i);
+        }
+    }
+    return myPebbles;
 }

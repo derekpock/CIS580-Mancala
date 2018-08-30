@@ -24,3 +24,12 @@ body {
     width: 100%;
     text-align: center;
 }
+
+#textWidthTester {
+    position: absolute;
+    visibility: hidden;
+    height: auto;
+    width: auto;
+    white-space: nowrap; /* Thanks to Herb Caudill comment */
+    font: 80px Arial;
+}   /* Credit to CMPalmer @ https://stackoverflow.com/questions/118241/calculate-text-width-with-javascript */
