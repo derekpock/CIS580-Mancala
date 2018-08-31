@@ -2,6 +2,7 @@ body {
     font-family: Arial, serif;
     background-color: #222222;
     color: #CCCCCC;
+    user-select: none;
 }
 
 h4, h5 {
@@ -50,6 +51,6 @@ a:visited {
     visibility: hidden;
     height: auto;
     width: auto;
-    white-space: nowrap; /* Thanks to Herb Caudill comment */
+    white-space: nowrap;
     font: 80px Arial;
 }   /* Credit to CMPalmer @ https://stackoverflow.com/questions/118241/calculate-text-width-with-javascript */
