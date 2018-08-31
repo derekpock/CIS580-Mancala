@@ -34,12 +34,14 @@ const endzoneYBottom = (containerRadius * 2) + containerYMargin + containerYOffs
 const pebbleRadius = 30;
 const pebbleShimmy = 3;
 
-let leftColor = "#FF2222";
+const textBlurRadius = 20;
+const textBlurColor = "#444444";
+const leftColor = "#FF7722";
 // let leftColorDark = "#551111";
-let leftColorDark = "#222222";
-let rightColor = "#2222FF";
+const leftColorDark = "#222222";
+const rightColor = "#2277FF";
 // let rightColorDark = "#111155";
-let rightColorDark = "#222222";
+const rightColorDark = "#222222";
 
 /// Data structures
 let pebbles = [];
@@ -87,13 +89,6 @@ function scheduleDraw() {
 
 /// Calculate pebble locations.
 function logic() {
-    // for(let y = 0; y < 2; y++)
-    // {
-    //     for(let x = 0; x < 6; x++) {
-    //         containers[y][x][PEBBLE_COUNT] = 0;
-    //     }
-    // }
-
     for(let i = 0; i < pebbles.length; i++) {
         // Shimmy the pebbles a little bit
         pebbles[i][TARGET_X] += (Math.random() * 2 * pebbleShimmy) - pebbleShimmy;
@@ -119,6 +114,7 @@ function draw() {
         }
         drawEndzone(y);
     }
+    drawTurns();
 
     for(let i = 0; i < pebbles.length; i++)
     {
@@ -131,6 +127,34 @@ function draw() {
         drawPebbleCountNumber(i + 1, 0, "#CCCCCC");
         drawPebbleCountNumber(i + 1, 1, "#CCCCCC");
     }
+}
+
+function drawTurns() {
+    ctx.shadowBlur = textBlurRadius;
+    ctx.shadowColor = textBlurColor;
+    ctx.font = "80px Arial";
+
+    if(turn === LEFT) {
+        ctx.fillStyle = leftColor;
+
+    } else {
+        ctx.fillStyle = "#888888";
+    }
+
+    let offset = getTextDimensions("Orange");
+    ctx.fillText("Orange", getEndzoneXCoordinate(LEFT) - (offset[0] / 2), endzoneYTop - (containerRadius * 2.2) + (offset[1] * 3/10));
+
+    if(turn === RIGHT) {
+        ctx.fillStyle = rightColor;
+
+    } else {
+        ctx.fillStyle = "#888888";
+    }
+
+    offset = getTextDimensions("Blue");
+    ctx.fillText("Blue", getEndzoneXCoordinate(RIGHT) - (offset[0] / 2), endzoneYBottom + (containerRadius * 2.2) + (offset[1] * 3/10));
+
+    ctx.shadowBlur = 0;
 }
 
 /// Create a new container with logical coordinate x and y.
@@ -177,11 +201,11 @@ function drawPebbleCountNumber(x, y, color) {
 
     let textData = getTextDimensions(count);
     xPos -= textData[0] / 2;
-    yPos += textData[1] / 2;
+    yPos += textData[1] * 3 / 10;
 
     ctx.fillStyle = color;
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = "#CCCCCC";
+    ctx.shadowBlur = textBlurRadius;
+    ctx.shadowColor = textBlurColor;
     ctx.font = "80px Arial";
     ctx.fillText(count, xPos, yPos);
     ctx.shadowBlur = 0;
@@ -415,55 +439,80 @@ canvas.addEventListener("click", function(event) {
 function containerClicked(containerX, containerY) {
     // Gather all the pebble in the clicked container.
     let myPebbles = getAllPebblesBelongingToContainer(containerX, containerY);
+    if(myPebbles.length === 0) {
+        return;
+    }
 
     // Increment positions for each pebble as necessary.
     let nextContainerX = containerX;
     let nextContainerY = containerY;
 
-    let lastChangeIndex = -1;
+    let skipNextChange = false;
     for(let i = 0; i < myPebbles.length; i++) {
         let p = pebbles[myPebbles[i]];
-
-        if(lastChangeIndex === i - 1) {
+        if(!skipNextChange) {
             if(nextContainerY === 0) {
-                nextContainerX--;
+                nextContainerX--;   // Move left on upper level
             } else {
-                nextContainerX++;
+                nextContainerX++;   // Move right on lower level
             }
-            lastChangeIndex = i;
         }
+        skipNextChange = false;
 
         if(nextContainerY === 0) {
+            // On upper level
             if(nextContainerX === -1) {
+                // Should be in endzone
                 if(turn === LEFT) {
                     scorePebbleToSide(p, LEFT);
+                    continue;
                 } else {
+                    // Not owned by this user, move it one more "left".
                     nextContainerX--;
+
+                    // Repeat check on this pebble.
                     i--;
+                    skipNextChange = true;
                     continue;
                 }
             } else if (nextContainerX < 0) {
+                // Need to move to lower level.
                 nextContainerY = 1;
                 nextContainerX = (-nextContainerX) - 2;
+
+                // Repeat check on this pebble.
                 i--;
+                skipNextChange = true;
                 continue;
             }
         } else {
+            // On lower level
             if(nextContainerX === 6) {
+                // Should be in endzone
                 if(turn === RIGHT) {
                     scorePebbleToSide(p, RIGHT);
+                    continue;
                 } else {
+                    // Not owned by this user, move it one more "right".
                     nextContainerX++;
+
+                    // Repeat check on this pebble.
                     i--;
+                    skipNextChange = true;
                     continue;
                 }
-            } else if (nextContainerX > 6) {
+            } else if (nextContainerX > 5) {
+                // Need to move it to upper level.
                 nextContainerY = 0;
-                nextContainerX = (-p[CONTAINER_X]) + 12;
+                nextContainerX = (-nextContainerX) + 12;
+
+                // Repeat check on this pebble.
                 i--;
+                skipNextChange = true;
                 continue;
             }
         }
+
         p[CONTAINER_X] = nextContainerX;
         p[CONTAINER_Y] = nextContainerY;
         containers[nextContainerY][nextContainerX][PEBBLE_COUNT]++;
@@ -491,9 +540,40 @@ function containerClicked(containerX, containerY) {
         }
     }
 
-    if(lastPebble == undefined ||
-        lastPebble[OWNER] !== turn) {
-        turn = (turn + 1) % 2;
+    let lowerRowEmpty = true;
+    let upperRowEmpty = true;
+    for(let i = 0; i < 6; i++) {
+        if(containers[0][i][PEBBLE_COUNT] !== 0) {
+            upperRowEmpty = false;
+        }
+        if(containers[1][i][PEBBLE_COUNT] !== 0) {
+            lowerRowEmpty = false;
+        }
+    }
+
+    if(lowerRowEmpty || upperRowEmpty) {
+        let bonusSide = (lowerRowEmpty ? 0 : 1);
+        for(let i = 0; i < pebbles.length; i++) {
+            let p = pebbles[i];
+            if(p[OWNER] === NONE) {
+                scorePebbleToSide(p, bonusSide);
+            }
+        }
+
+        // Game end!
+        if(scores[LEFT] > scores[RIGHT]) {
+            turn = LEFT;
+        } else if (scores[RIGHT] > scores[LEFT]) {
+            turn = RIGHT;
+        } else {
+            turn = -1;
+        }
+
+    } else {
+        if(lastPebble == undefined ||
+            lastPebble[OWNER] !== turn) {
+            turn = (turn + 1) % 2;
+        }
     }
 }
 

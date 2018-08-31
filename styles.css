@@ -4,9 +4,21 @@ body {
     color: #CCCCCC;
 }
 
+h4, h5 {
+    margin: 10px;
+}
+
+a {
+    color: #2277FF;
+}
+
+a:visited {
+    color: #FF7722;
+}
+
 #canvas {
     position: absolute;
-    outline: #AAAAAA 1px dotted;
+    /*outline: #AAAAAA 1px dotted;*/
 }
 
 #ui {
@@ -18,8 +30,16 @@ body {
 }
 
 #header {
-    position: absolute;;
+    position: absolute;
     top: 0;
+    left: 0;
+    width: 100%;
+    text-align: center;
+}
+
+#footer {
+    position: absolute;
+    bottom: 0;
     left: 0;
     width: 100%;
     text-align: center;
